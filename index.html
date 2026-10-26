@@ -8,6 +8,9 @@
   /* One deliberate look: the hero's own maroon, the same in light and dark viewers. */
   :root { --page: #600909; color-scheme: dark; }
   html, body { margin: 0; background: var(--page); }
+  /* no visible scrollbar; the page still scrolls with the wheel, trackpad, touch and keys */
+  html { scrollbar-width: none; }
+  html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
 
   /* The Figma frame is 1440 × 2130; the stage keeps that coordinate system and is scaled to the window width. */
   .hero { position: relative; width: 100%; overflow: hidden; height: calc(100vw * 2130 / 1440); }
