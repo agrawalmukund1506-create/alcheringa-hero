@@ -1204,7 +1204,7 @@
       shade.style.opacity = (s * 0.9).toFixed(3);
     }
     draw(0, 0);
-    return { delay, total, at, draw, steps };
+    return { delay, total, at, draw, steps, spin, last: 0, stopped: false };
   }
 
   // the eyes spin two full turns (about 2.6s in all) and land back on 5 and 0; the left lands a beat behind
@@ -1275,6 +1275,8 @@
     return {
       init,
       get ready() { return !!ctx; },
+      // actually audible: browsers keep the context suspended until the visitor interacts
+      get running() { return !!ctx && ctx.state === 'running'; },
       // lever pull: ratchet teeth closing up as it speeds down, then the clunk at the bottom
       pull(dur) {
         const t = ctx.currentTime;
@@ -1465,7 +1467,17 @@
 
   // hooks for the optional extras further down: re-roll the eyes, and the sound engine
   let clock = 0;
-  const spinEyes = () => { for (const r of reels) { r.delay = clock + 0.05; r.last = 0; r.ticking = sound.ready; } };
+  const spinEyes = () => { for (const r of reels) { r.delay = clock + 0.05; r.last = 0; r.stopped = false; } };
+
+  // Eye-spin sound on load. Browsers only let a page make sound after the visitor interacts with it,
+  // so this asks for audio straight away (some browsers allow it, e.g. for sites you visit often) and
+  // otherwise switches it on at the first click, tap or key press, so the rest of the spin is heard.
+  // Ticks are only played while audio is actually running, so none pile up and burst out late.
+  if (!reduce) {
+    sound.init();
+    for (const ev of ['pointerdown', 'keydown', 'touchstart'])
+      addEventListener(ev, () => sound.init(), { once: true, passive: true });
+  }
   window.alcheringaHero = { sound, spinEyes, reduce };
 
   if (reduce) {
@@ -1481,7 +1493,9 @@
     for (const r of reels) {
       const [p, v] = r.at(t - r.delay);
       r.draw(p, v);
-      if (r.ticking && Math.floor(p) !== r.last) { r.last = Math.floor(p); sound.tick(); }
+      // a tick for each digit that rolls past, a thunk as each eye brakes onto its number
+      if (Math.floor(p) !== r.last) { r.last = Math.floor(p); if (sound.running) sound.tick(); }
+      if (!r.stopped && t - r.delay >= r.spin) { r.stopped = true; if (sound.running) sound.stop(); }
     }
     for (const h of Object.values(halves)) {
       const base = halfAngle(h, t);
